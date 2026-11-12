@@ -8,6 +8,14 @@ A lightweight, single-executable (`BrightnessControl.exe`) Windows system tray u
 
 ---
 
+## Screenshots
+
+| Floating Slider & Setup (Left-Click) | System Tray Slider (Right-Click) | Custom Quick Presets |
+| :---: | :---: | :---: |
+| ![Floating Brightness Flyout](Resource/image-3.png) | ![System Tray Context Menu Slider](Resource/image-1.png) | ![Quick Presets Submenu](Resource/image-2.png) |
+
+---
+
 ## Features
 
 - **Single Standalone `.exe`**: Everything is compiled into `BrightnessControl.exe` (zero companion `.dll` files, zero `.ini` clutter — settings are saved cleanly in `HKCU\Software\BrightnessControl`).
@@ -34,4 +42,3 @@ Requires Windows with .NET Framework 4.x (`csc.exe` is included with Windows by 
 ```
 
 This compiles `BrightnessControl.exe` directly into the repository root with all icons embedded.
-

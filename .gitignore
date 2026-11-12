@@ -1,0 +1,8 @@
+# Ignore local backups, compiled binary, and temporary artifacts
+_original/
+BrightnessControl.exe
+*.tmp
+*.pdb
+*.user
+*.suo
+

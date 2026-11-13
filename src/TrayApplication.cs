@@ -43,12 +43,12 @@ namespace BrightnessControl {
             input.MouseWheel += OnMouseWheel;
             input.Listen();
 
-            flyout = new BrightnessFlyout();
+            flyout = new BrightnessFlyout(currentBrightness);
             flyout.BrightnessRequested += OnUiBrightnessRequested;
             flyout.DragCompleted += FlushTrayVisuals;
             flyout.TurnOffScreenRequested += delegate() { display.TurnOffScreen(); };
 
-            contextMenu = new TrayContextMenu();
+            contextMenu = new TrayContextMenu(currentBrightness);
             contextMenu.SyncBrightness(currentBrightness);
             contextMenu.BrightnessRequested += OnUiBrightnessRequested;
             contextMenu.DragCompleted += FlushTrayVisuals;
@@ -85,6 +85,24 @@ namespace BrightnessControl {
 
             UpdateTrayVisuals(true);
 
+            // DDC/CI monitor may take 1-2 seconds after Windows login or boot to respond to I2C queries
+            System.Windows.Forms.Timer startupRetryTimer = new System.Windows.Forms.Timer();
+            startupRetryTimer.Interval = 1500;
+            startupRetryTimer.Tick += delegate(object s, EventArgs e) {
+                startupRetryTimer.Stop();
+                startupRetryTimer.Dispose();
+                if (!exiting && !IsDisposed) {
+                    int val = display.RefreshCurrentValue();
+                    if (val >= 0 && val != currentBrightness) {
+                        currentBrightness = val;
+                        UpdateTrayVisuals(false);
+                        flyout.UpdateBrightnessExternal(val);
+                        contextMenu.SyncBrightness(val);
+                    }
+                }
+            };
+            startupRetryTimer.Start();
+
             if (wakeupEvent != null) {
                 wakeupThread = new Thread(WakeupListenerLoop);
                 wakeupThread.IsBackground = true;
@@ -120,8 +138,11 @@ namespace BrightnessControl {
         }
 
         private void OnTrayIconMouseDown(object sender, MouseEventArgs e) {
-            if (e.Button == MouseButtons.Right && flyout.Visible) {
-                flyout.Hide();
+            if (e.Button == MouseButtons.Right) {
+                if (flyout.Visible) {
+                    flyout.Hide();
+                }
+                contextMenu.SyncBrightness(currentBrightness);
             }
         }
 
@@ -254,6 +275,10 @@ namespace BrightnessControl {
 
         protected override void Dispose(bool disposing) {
             exiting = true;
+            try {
+                SettingsStore.LastBrightness = currentBrightness;
+            } catch {
+            }
             if (disposing) {
                 SystemEvents.PaletteChanged -= OnSystemChanged;
                 SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;

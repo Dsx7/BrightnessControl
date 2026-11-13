@@ -105,11 +105,11 @@ namespace BrightnessControl {
 
         [DllImport("dxva2.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetMonitorBrightness(IntPtr hMonitor, short brightness);
+        public static extern bool SetMonitorBrightness(IntPtr hMonitor, uint brightness);
 
         [DllImport("dxva2.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetMonitorBrightness(IntPtr hMonitor, out short pdwMinimumBrightness, out short pdwCurrentBrightness, out short pdwMaximumBrightness);
+        public static extern bool GetMonitorBrightness(IntPtr hMonitor, out uint pdwMinimumBrightness, out uint pdwCurrentBrightness, out uint pdwMaximumBrightness);
 
         [DllImport("dwmapi.dll")]
         public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);

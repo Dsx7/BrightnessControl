@@ -23,7 +23,7 @@ namespace BrightnessControl {
         private List<ManagementObject> cachedWmiWriters;
 
         private volatile bool disposed;
-        private int currentValue = 50;
+        private int currentValue;
         private int pendingValue = -1;
         private int lastAppliedValue = -1;
         private DateTime lastWriteUtc = DateTime.MinValue;
@@ -31,7 +31,11 @@ namespace BrightnessControl {
         public event Action<int> BrightnessChanged;
 
         public DisplayController() {
-            currentValue = ReadCurrentBrightness();
+            currentValue = SettingsStore.LastBrightness;
+            int hardwareVal = ReadCurrentBrightness();
+            if (hardwareVal >= 0) {
+                currentValue = hardwareVal;
+            }
             StartWmiWatcher();
             workerThread = new Thread(WorkerLoop);
             workerThread.IsBackground = true;
@@ -59,6 +63,7 @@ namespace BrightnessControl {
         public void SetBrightnessAsync(int level) {
             int clamped = Math.Max(0, Math.Min(100, level));
             currentValue = clamped;
+            SettingsStore.LastBrightness = clamped;
             lock (queueLock) {
                 pendingValue = clamped;
             }
@@ -94,9 +99,9 @@ namespace BrightnessControl {
 
         private void EnsureMonitorsLoaded() {
             lock (monitorLock) {
-                if (monitorsLoaded) return;
+                if (monitorsLoaded && cachedMonitors != null && cachedMonitors.Count > 0) return;
                 cachedMonitors = CollectPhysicalMonitors(out cachedPrimaryMonitor);
-                monitorsLoaded = true;
+                monitorsLoaded = (cachedMonitors != null && cachedMonitors.Count > 0);
             }
         }
 
@@ -120,7 +125,7 @@ namespace BrightnessControl {
                     if (cachedMonitors != null && cachedMonitors.Count > 0) {
                         foreach (Interop.PHYSICAL_MONITOR pm in cachedMonitors) {
                             try {
-                                if (!Interop.SetMonitorBrightness(pm.hPhysicalMonitor, (short)level)) {
+                                if (!Interop.SetMonitorBrightness(pm.hPhysicalMonitor, (uint)level)) {
                                     anyFailed = true;
                                 }
                             } catch {
@@ -195,14 +200,22 @@ namespace BrightnessControl {
             try {
                 EnsureMonitorsLoaded();
                 lock (monitorLock) {
-                    if (cachedPrimaryMonitor.hPhysicalMonitor != IntPtr.Zero) {
-                        short min, cur, max;
-                        if (Interop.GetMonitorBrightness(cachedPrimaryMonitor.hPhysicalMonitor, out min, out cur, out max)) {
+                    IntPtr hMon = cachedPrimaryMonitor.hPhysicalMonitor;
+                    if (hMon == IntPtr.Zero && cachedMonitors != null && cachedMonitors.Count > 0) {
+                        hMon = cachedMonitors[0].hPhysicalMonitor;
+                    }
+                    if (hMon != IntPtr.Zero) {
+                        uint min, cur, max;
+                        if (Interop.GetMonitorBrightness(hMon, out min, out cur, out max)) {
+                            int pct;
                             if (max > min) {
-                                int pct = (int)Math.Round((cur - min) * 100.0 / (max - min));
-                                return Math.Max(0, Math.Min(100, pct));
+                                pct = (int)Math.Round((cur - min) * 100.0 / (max - min));
+                            } else {
+                                pct = (int)cur;
                             }
-                            if (cur >= 0) return Math.Max(0, Math.Min(100, (int)cur));
+                            pct = Math.Max(0, Math.Min(100, pct));
+                            SettingsStore.LastBrightness = pct;
+                            return pct;
                         }
                     }
                 }
@@ -212,7 +225,7 @@ namespace BrightnessControl {
             // Fallback to WMI (skip if already probed unsupported)
             try {
                 lock (wmiLock) {
-                    if (wmiProbed && !wmiSupported) return currentValue;
+                    if (wmiProbed && !wmiSupported) return SettingsStore.LastBrightness;
                     ManagementScope scope = new ManagementScope(@"root\WMI");
                     SelectQuery query = new SelectQuery("SELECT * FROM WmiMonitorBrightness");
                     using (ManagementObjectSearcher searcher = new ManagementObjectSearcher(scope, query))
@@ -222,7 +235,9 @@ namespace BrightnessControl {
                                 PropertyData prop = obj.Properties["CurrentBrightness"];
                                 if (prop != null && prop.Value != null) {
                                     int b = Convert.ToInt32(prop.Value);
-                                    return Math.Max(0, Math.Min(100, b));
+                                    b = Math.Max(0, Math.Min(100, b));
+                                    SettingsStore.LastBrightness = b;
+                                    return b;
                                 }
                             }
                         }
@@ -231,7 +246,7 @@ namespace BrightnessControl {
             } catch {
             }
 
-            return currentValue;
+            return SettingsStore.LastBrightness;
         }
 
         private void StartWmiWatcher() {
@@ -262,6 +277,7 @@ namespace BrightnessControl {
                 }
 
                 currentValue = level;
+                SettingsStore.LastBrightness = level;
                 Action<int> handler = BrightnessChanged;
                 if (handler != null) handler(level);
             } catch {
@@ -286,6 +302,9 @@ namespace BrightnessControl {
                         }
                     }
                 }
+            }
+            if (primaryMonitor.hPhysicalMonitor == IntPtr.Zero && list.Count > 0) {
+                primaryMonitor = list[0];
             }
             return list;
         }

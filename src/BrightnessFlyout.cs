@@ -45,7 +45,11 @@ namespace BrightnessControl {
         public event Action TurnOffScreenRequested;
         public event Action SettingsChanged;
 
-        public BrightnessFlyout() {
+        public BrightnessFlyout() : this(SettingsStore.LastBrightness) {
+        }
+
+        public BrightnessFlyout(int initialBrightness) {
+            currentBrightness = Math.Max(0, Math.Min(100, initialBrightness));
             LastDeactivatedUtc = DateTime.MinValue;
 
             FormBorderStyle = FormBorderStyle.None;
@@ -76,7 +80,7 @@ namespace BrightnessControl {
             toolTip.SetToolTip(minusBtn, "Decrease 1%");
 
             percentLabel = new Label();
-            percentLabel.Text = "50%";
+            percentLabel.Text = currentBrightness + "%";
             percentLabel.TextAlign = ContentAlignment.MiddleCenter;
             percentLabel.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             percentLabel.Cursor = Cursors.IBeam;
@@ -113,7 +117,7 @@ namespace BrightnessControl {
             };
             toolTip.SetToolTip(setupToggleBtn, "Configure presets, wheel step, and startup");
 
-            slider = new SmoothSlider();
+            slider = new SmoothSlider(currentBrightness);
             slider.ValueChanged += delegate(int val) {
                 currentBrightness = val;
                 UpdateValueVisuals();

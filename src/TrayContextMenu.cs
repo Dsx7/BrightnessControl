@@ -29,7 +29,11 @@ namespace BrightnessControl {
         public event Action AboutRequested;
         public event Action ExitRequested;
 
-        public TrayContextMenu() {
+        public TrayContextMenu() : this(SettingsStore.LastBrightness) {
+        }
+
+        public TrayContextMenu(int initialBrightness) {
+            currentBrightness = Math.Max(0, Math.Min(100, initialBrightness));
             ShowImageMargin = false;
             ShowCheckMargin = true;
             Font = new Font("Segoe UI", 9.25f, FontStyle.Regular);
@@ -53,12 +57,12 @@ namespace BrightnessControl {
             headerTitleLabel.TextAlign = ContentAlignment.MiddleLeft;
 
             headerPercentLabel = new Label();
-            headerPercentLabel.Text = "50%";
+            headerPercentLabel.Text = currentBrightness + "%";
             headerPercentLabel.Bounds = new Rectangle(w - pad - (int)Math.Round(48 * scale), (int)Math.Round(4 * scale), (int)Math.Round(48 * scale), (int)Math.Round(18 * scale));
             headerPercentLabel.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
             headerPercentLabel.TextAlign = ContentAlignment.MiddleRight;
 
-            menuSlider = new SmoothSlider();
+            menuSlider = new SmoothSlider(currentBrightness);
             menuSlider.Bounds = new Rectangle(pad - (int)Math.Round(4 * scale), (int)Math.Round(24 * scale), w - (pad - (int)Math.Round(4 * scale)) * 2, (int)Math.Round(28 * scale));
             menuSlider.ValueChanged += delegate(int val) {
                 currentBrightness = val;

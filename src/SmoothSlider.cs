@@ -18,7 +18,14 @@ namespace BrightnessControl {
         public event Action DragStarted;
         public event Action DragCompleted;
 
-        public SmoothSlider() {
+        public SmoothSlider() : this(SettingsStore.LastBrightness) {
+        }
+
+        public SmoothSlider(int initialValue) {
+            int clamped = Math.Max(0, Math.Min(100, initialValue));
+            value = clamped;
+            visualValue = clamped;
+
             SetStyle(
                 ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.OptimizedDoubleBuffer |

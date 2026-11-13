@@ -11,6 +11,33 @@ namespace BrightnessControl {
 
         private static readonly int[] DefaultPresets = new int[] { 0, 25, 50, 75, 100 };
 
+        public static int LastBrightness {
+            get {
+                try {
+                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(AppRegPath, false)) {
+                        if (key != null) {
+                            object v = key.GetValue("LastBrightness");
+                            if (v != null) {
+                                int b = Convert.ToInt32(v);
+                                if (b >= 0 && b <= 100) return b;
+                            }
+                        }
+                    }
+                } catch {
+                }
+                return 50;
+            }
+            set {
+                int clamped = Math.Max(0, Math.Min(100, value));
+                try {
+                    using (RegistryKey key = Registry.CurrentUser.CreateSubKey(AppRegPath)) {
+                        if (key != null) key.SetValue("LastBrightness", clamped, RegistryValueKind.DWord);
+                    }
+                } catch {
+                }
+            }
+        }
+
         public static int WheelStep {
             get {
                 try {
